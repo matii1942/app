@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Aplicación de Libros</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1, h2 {
+            color: #0056b3;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            background: #e9e9e9;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        li button {
+            margin-left: 10px;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .update-btn {
+            background-color: #007bff;
+            color: white;
+        }
+        form {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        form input {
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 180px;
+        }
+        form button {
+            padding: 8px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        form button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mi Aplicación de Libros (Frontend)</h1>
+
+        <hr>
+
+        <h2>Lista de Libros</h2>
+        <ul id="books-list">
+            </ul>
+
+        <hr>
+
+        <h2>Agregar Nuevo Libro</h2>
+        <form id="add-book-form">
+            <input type="text" id="add-title" placeholder="Título del libro" required>
+            <input type="text" id="add-author" placeholder="Autor" required>
+            <input type="number" id="add-year" placeholder="Año" required>
+            <button type="submit">Agregar Libro</button>
+        </form>
+
+        <hr>
+
+        <h2>Actualizar Libro</h2>
+        <form id="update-book-form">
+            <input type="text" id="update-id" placeholder="ID del libro a actualizar" required>
+            <input type="text" id="update-title" placeholder="Nuevo Título (opcional)">
+            <input type="text" id="update-author" placeholder="Nuevo Autor (opcional)">
+            <input type="number" id="update-year" placeholder="Nuevo Año (opcional)">
+            <button type="submit">Actualizar Libro</button>
+        </form>
+    </div>
+
+    <script>
+        // URL base de tu API
+        const API_URL = 'http://localhost:3000/api/books';
+
+        // Elementos del DOM
+        const booksList = document.getElementById('books-list');
+        const addBookForm = document.getElementById('add-book-form');
+        const updateBookForm = document.getElementById('update-book-form');
+
+        // --- Función para Cargar y Mostrar Libros ---
+        async function fetchBooks() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const books = await response.json();
+                booksList.innerHTML = ''; // Limpiar lista antes de cargar
+                books.forEach(book => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${book.title} - ${book.author} (${book.year}) [ID: ${book.id}]</span>
+                        <div>
+                            <button class="update-btn" data-id="${book.id}" data-title="${book.title}" data-author="${book.author}" data-year="${book.year}">Editar</button>
+                            <button class="delete-btn" data-id="${book.id}">Eliminar</button>
+                        </div>
+                    `;
+                    booksList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Error al obtener los libros:', error);
+                booksList.innerHTML = '<li>Error al cargar los libros. Por favor, asegúrate de que la API está corriendo.</li>';
+            }
+        }
+
+        // --- Función para Agregar un Libro ---
+        addBookForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevenir el envío del formulario por defecto
+            const title = document.getElementById('add-title').value;
+            const author = document.getElementById('add-author').value;
+            const year = parseInt(document.getElementById('add-year').value);
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, author, year })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                document.getElementById('add-title').value = '';
+                document.getElementById('add-author').value = '';
+                document.getElementById('add-year').value = '';
+                await fetchBooks(); // Volver a cargar la lista para ver el nuevo libro
+            } catch (error) {
+                console.error('Error al agregar el libro:', error);
+                alert('Error al agregar el libro. Revisa la consola para más detalles.');
+            }
+        });
+
+        // --- Función para Eliminar un Libro ---
+        booksList.addEventListener('click', async (event) => {
+            if (event.target.classList.contains('delete-btn')) {
+                const bookId = event.target.dataset.id;
+                if (confirm(`¿Estás seguro de que quieres eliminar el libro con ID: ${bookId}?`)) {
+                    try {
+                        const response = await fetch(`${API_URL}/${bookId}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        await fetchBooks(); // Volver a cargar la lista
+                    } catch (error) {
+                        console.error('Error al eliminar el libro:', error);
+                        alert('Error al eliminar el libro. Revisa la consola para más detalles.');
+                    }
+                }
+            }
+        });
+
+        // --- Función para Actualizar un Libro ---
+        updateBookForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const id = document.getElementById('update-id').value;
+            const title = document.getElementById('update-title').value;
+            const author = document.getElementById('update-author').value;
+            const year = document.getElementById('update-year').value;
+
+            const updatedData = {};
+            if (title) updatedData.title = title;
+            if (author) updatedData.author = author;
+            if (year) updatedData.year = parseInt(year);
+
+            if (Object.keys(updatedData).length === 0) {
+                alert('Por favor, ingresa al menos un campo para actualizar.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                document.getElementById('update-id').value = '';
+                document.getElementById('update-title').value = '';
+                document.getElementById('update-author').value = '';
+                document.getElementById('update-year').value = '';
+                await fetchBooks();
+            } catch (error) {
+                console.error('Error al actualizar el libro:', error);
+                alert('Error al actualizar el libro. Revisa la consola para más detalles.');
+            }
+        });
+
+        // Para poblar el formulario de actualización cuando se hace clic en "Editar"
+        booksList.addEventListener('click', (event) => {
+            if (event.target.classList.contains('update-btn')) {
+                const id = event.target.dataset.id;
+                const title = event.target.dataset.title;
+                const author = event.target.dataset.author;
+                const year = event.target.dataset.year;
+
+                document.getElementById('update-id').value = id;
+                document.getElementById('update-title').value = title;
+                document.getElementById('update-author').value = author;
+                document.getElementById('update-year').value = year;
+            }
+        });
+
+
+        // Cargar los libros al inicio cuando la página se carga
+        fetchBooks();
+    </script>
+</body>
+</html>
